@@ -1,11 +1,45 @@
 import numpy as np
 from stable_baselines3 import PPO
+from pathlib import Path
+import argparse
 from .env import Star5TrackEnv
 
-MODEL_PATH = "ppo_star5_panda.zip"
+MODEL_PREFIX = "ppo_star5_panda"
 
 
-def evaluate(n_episodes=20):
+def get_model_path(model_path: str | None = None, model_rank: int | None = None) -> str:
+    if model_path is not None:
+        return model_path
+    model_dir = Path("models")
+    candidates = sorted(
+        model_dir.glob(f"{MODEL_PREFIX}*.zip"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if not candidates:
+        raise FileNotFoundError(f"No model found matching: {model_dir / (MODEL_PREFIX + '*.zip')}")
+    if model_rank is None:
+        print("Select model:")
+        for idx, candidate in enumerate(candidates, start=1):
+            print(f"  {idx}) {candidate}")
+        while True:
+            raw = input("Enter number: ").strip()
+            if raw.isdigit():
+                pick = int(raw)
+                if 1 <= pick <= len(candidates):
+                    return str(candidates[pick - 1])
+            print("Invalid choice. Enter a valid number from the list.")
+
+    if model_rank < 1:
+        raise ValueError("model_rank must be >= 1")
+    if model_rank > len(candidates):
+        raise FileNotFoundError(
+            f"Requested model_rank={model_rank}, but only {len(candidates)} model(s) found for prefix '{MODEL_PREFIX}'"
+        )
+    return str(candidates[model_rank - 1])
+
+
+def evaluate(n_episodes=20, model_path: str | None = None, model_rank: int | None = None):
     env = Star5TrackEnv(
         xml_path="mujoco_menagerie/franka_emika_panda/scene.xml",
         ee_body="hand",
@@ -24,7 +58,7 @@ def evaluate(n_episodes=20):
         reward_act_w=0.02,
         seed=0,
     )
-    model = PPO.load(MODEL_PATH)
+    model = PPO.load(get_model_path(model_path=model_path, model_rank=model_rank))
 
     ep_stats = []
     for _ in range(n_episodes):
@@ -58,8 +92,8 @@ def evaluate(n_episodes=20):
     return ep_stats
 
 
-def main():
-    stats = evaluate(30)
+def main(model_path: str | None = None, model_rank: int | None = None):
+    stats = evaluate(30, model_path=model_path, model_rank=model_rank)
 
     lens = np.array([s["len"] for s in stats])
     pos_rms = np.array([s["pos_rms"] for s in stats])
@@ -80,4 +114,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Batch eval for star5 scenario")
+    parser.add_argument("--model-path", default=None, help="Optional explicit model zip path")
+    parser.add_argument("--model-rank", type=int, default=None, help="Optional model rank by recency (1=latest)")
+    args = parser.parse_args()
+    main(model_path=args.model_path, model_rank=args.model_rank)

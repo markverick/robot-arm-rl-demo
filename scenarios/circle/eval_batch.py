@@ -2,9 +2,9 @@ import numpy as np
 from stable_baselines3 import PPO
 from pathlib import Path
 import argparse
-from .env import Figure8TrackEnv
+from .env import CircleTrackEnv
 
-MODEL_PREFIX = "ppo_figure8_panda_large_fit_v2"
+MODEL_PREFIX = "ppo_circle_panda"
 
 
 def get_model_path(model_path: str | None = None, model_rank: int | None = None) -> str:
@@ -38,15 +38,15 @@ def get_model_path(model_path: str | None = None, model_rank: int | None = None)
         )
     return str(candidates[model_rank - 1])
 
+
 def evaluate(n_episodes=20, model_path: str | None = None, model_rank: int | None = None):
-    env = Figure8TrackEnv(
+    env = CircleTrackEnv(
         xml_path="mujoco_menagerie/franka_emika_panda/scene.xml",
         ee_body="hand",
         control_hz=40,
         episode_seconds=10.0,
-        f_hz=0.75,
-        a=0.22,
-        b=0.17,
+        radius=0.20,
+        f_hz=0.7,
         alpha=0.08,
         theta_max_deg=6.0,
         action_scale=0.03,
@@ -60,7 +60,7 @@ def evaluate(n_episodes=20, model_path: str | None = None, model_rank: int | Non
     model = PPO.load(get_model_path(model_path=model_path, model_rank=model_rank))
 
     ep_stats = []
-    for ep in range(n_episodes):
+    for _ in range(n_episodes):
         obs, _ = env.reset()
         pos_errs = []
         ori_errs = []
@@ -90,6 +90,7 @@ def evaluate(n_episodes=20, model_path: str | None = None, model_rank: int | Non
 
     return ep_stats
 
+
 def main(model_path: str | None = None, model_rank: int | None = None):
     stats = evaluate(30, model_path=model_path, model_rank=model_rank)
 
@@ -99,9 +100,10 @@ def main(model_path: str | None = None, model_rank: int | None = None):
     ori_rms = np.array([s["ori_rms"] for s in stats])
     term_rate = np.mean([s["terminated"] for s in stats])
 
-    def pct(x, p): return float(np.percentile(x, p))
+    def pct(x, p):
+        return float(np.percentile(x, p))
 
-    print("Batch evaluation:")
+    print("Batch evaluation (circle):")
     print(f"  episodes: {len(stats)}")
     print(f"  mean ep_len: {lens.mean():.1f}  (min={lens.min()}, max={lens.max()})")
     print(f"  termination rate: {term_rate*100:.1f}%")
@@ -111,7 +113,7 @@ def main(model_path: str | None = None, model_rank: int | None = None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Batch eval for figure8 scenario")
+    parser = argparse.ArgumentParser(description="Batch eval for circle scenario")
     parser.add_argument("--model-path", default=None, help="Optional explicit model zip path")
     parser.add_argument("--model-rank", type=int, default=None, help="Optional model rank by recency (1=latest)")
     args = parser.parse_args()

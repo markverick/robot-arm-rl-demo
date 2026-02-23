@@ -4,18 +4,17 @@ from stable_baselines3.common.monitor import Monitor
 from pathlib import Path
 from datetime import datetime
 
-from .env import Star5TrackEnv
+from .env import TriangleTrackEnv
 
 
 def make_env():
-    env = Star5TrackEnv(
+    env = TriangleTrackEnv(
         xml_path="mujoco_menagerie/franka_emika_panda/scene.xml",
         ee_body="hand",
         control_hz=40,
         episode_seconds=10.0,
+        radius=0.20,
         f_hz=0.55,
-        a=0.20,
-        b=0.08,
         alpha=0.08,
         theta_max_deg=6.0,
         action_scale=0.03,
@@ -50,7 +49,7 @@ def main():
     model_dir = Path("models")
     model_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_path_stem = model_dir / f"ppo_star5_panda_{timestamp}"
+    model_path_stem = model_dir / f"ppo_triangle_panda_{timestamp}"
     model.save(str(model_path_stem))
     print(f"Saved to {model_path_stem}.zip")
 

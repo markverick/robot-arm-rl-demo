@@ -1,6 +1,8 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.monitor import Monitor
+from pathlib import Path
+from datetime import datetime
 
 from .env import Figure8TrackEnv
 
@@ -46,8 +48,12 @@ def main():
     )
 
     model.learn(total_timesteps=800_000)
-    model.save("ppo_figure8_panda_large_fit_v2")
-    print("Saved to ppo_figure8_panda_large_fit_v2.zip")
+    model_dir = Path("models")
+    model_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_path_stem = model_dir / f"ppo_figure8_panda_large_fit_v2_{timestamp}"
+    model.save(str(model_path_stem))
+    print(f"Saved to {model_path_stem}.zip")
 
 
 if __name__ == "__main__":

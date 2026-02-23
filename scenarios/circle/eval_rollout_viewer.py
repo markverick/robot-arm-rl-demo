@@ -6,9 +6,9 @@ from stable_baselines3 import PPO
 from pathlib import Path
 import argparse
 
-from .env import Figure8TrackEnv
+from .env import CircleTrackEnv
 
-MODEL_PREFIX = "ppo_figure8_panda_large_fit_v2"
+MODEL_PREFIX = "ppo_circle_panda"
 
 
 def get_model_path(model_path: str | None = None, model_rank: int | None = None) -> str:
@@ -57,7 +57,7 @@ def draw_ee_trail(viewer, points, radius=0.004):
     for i in range(n):
         p = points[start + i]
         alpha = 0.15 + 0.80 * ((i + 1) / n)
-        rgba = np.array([0.10, 0.95, 0.35, alpha], dtype=np.float32)
+        rgba = np.array([0.30, 0.75, 1.00, alpha], dtype=np.float32)
         size = np.array([radius, 0.0, 0.0], dtype=np.float64)
 
         mujoco.mjv_initGeom(
@@ -72,15 +72,13 @@ def draw_ee_trail(viewer, points, radius=0.004):
 
 
 def main(model_path: str | None = None, model_rank: int | None = None):
-    # Use the same env params you trained with
-    env = Figure8TrackEnv(
+    env = CircleTrackEnv(
         xml_path="mujoco_menagerie/franka_emika_panda/scene.xml",
         ee_body="hand",
         control_hz=40,
         episode_seconds=10.0,
-        f_hz=0.75,
-        a=0.22,
-        b=0.17,
+        radius=0.20,
+        f_hz=0.7,
         alpha=0.08,
         theta_max_deg=6.0,
         action_scale=0.03,
@@ -94,7 +92,7 @@ def main(model_path: str | None = None, model_rank: int | None = None):
 
     model = PPO.load(get_model_path(model_path=model_path, model_rank=model_rank))
 
-    obs, info = env.reset()
+    obs, _ = env.reset()
     ee_body_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, env.ee_body)
     if ee_body_id < 0:
         raise ValueError(f"EE body not found: {env.ee_body}")
@@ -131,7 +129,6 @@ def main(model_path: str | None = None, model_rank: int | None = None):
                 draw_ee_trail(viewer, ee_trail)
 
             viewer.sync()
-            # match sim pace (optional; remove if you want it as fast as possible)
             time.sleep(env.dt)
 
             step += 1
@@ -142,16 +139,18 @@ def main(model_path: str | None = None, model_rank: int | None = None):
     ori_errs = np.array(ori_errs)
     rewards = np.array(rewards)
 
-    def rms(x): return float(np.sqrt(np.mean(x * x)))
+    def rms(x):
+        return float(np.sqrt(np.mean(x * x)))
 
-    print("\nEpisode summary:")
+    print("\nEpisode summary (circle):")
     print(f"  steps: {len(pos_errs)}")
     print(f"  pos_err: mean={pos_errs.mean():.4f} m, rms={rms(pos_errs):.4f} m, max={pos_errs.max():.4f} m")
     print(f"  ori_err: mean={ori_errs.mean():.4f} rad, rms={rms(ori_errs):.4f} rad, max={ori_errs.max():.4f} rad")
     print(f"  reward:  mean={rewards.mean():.4f}, sum={rewards.sum():.4f}")
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Rollout viewer for figure8 scenario")
+    parser = argparse.ArgumentParser(description="Rollout viewer for circle scenario")
     parser.add_argument("--model-path", default=None, help="Optional explicit model zip path")
     parser.add_argument("--model-rank", type=int, default=None, help="Optional model rank by recency (1=latest)")
     args = parser.parse_args()
