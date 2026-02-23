@@ -7,7 +7,7 @@ Install required system packages and rendering libraries:
 ```bash
 sudo apt-get update
 sudo apt-get install -y git python3 python3-venv python3-pip
-sudo apt-get install -y libglfw3 libglew2.0 libgl1-mesa-glx libosmesa6
+sudo apt-get install -y libglfw3 libglew-dev libgl1-mesa-glx libosmesa6
 ```
 
 Create and activate a clean Python virtual environment:

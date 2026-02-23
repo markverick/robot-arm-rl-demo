@@ -3,7 +3,18 @@ set -euo pipefail
 
 sudo apt-get update
 sudo apt-get install -y git python3 python3-venv python3-pip
-sudo apt-get install -y libglfw3 libglew2.0 libgl1-mesa-glx libosmesa6
+sudo apt-get install -y libglfw3 libgl1-mesa-glx libosmesa6
+
+# GLEW package name differs by Ubuntu release.
+if apt-cache show libglew2.2 >/dev/null 2>&1; then
+  sudo apt-get install -y libglew2.2
+elif apt-cache show libglew2.1 >/dev/null 2>&1; then
+  sudo apt-get install -y libglew2.1
+elif apt-cache show libglew2.0 >/dev/null 2>&1; then
+  sudo apt-get install -y libglew2.0
+else
+  sudo apt-get install -y libglew-dev
+fi
 
 python3 -m venv .venv
 source .venv/bin/activate
