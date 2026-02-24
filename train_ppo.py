@@ -10,6 +10,20 @@ SCENARIO_MODULES = {
 }
 
 
+def select_mode_interactive() -> str:
+    print("Select training mode:")
+    print("  1) new    (start from scratch)")
+    print("  2) resume (continue from existing model)")
+
+    while True:
+        raw = input("Enter number (default: 1): ").strip()
+        if raw in ("", "1", "new"):
+            return "new"
+        if raw in ("2", "resume"):
+            return "resume"
+        print("Invalid choice. Enter 1/new or 2/resume.")
+
+
 def select_scenario_interactive() -> str:
     names = sorted(SCENARIO_MODULES.keys())
     print("Select scenario:")
@@ -40,11 +54,52 @@ def main():
         default=None,
         help="Scenario name to train (if omitted, an interactive selector is shown)",
     )
+    parser.add_argument(
+        "--mode",
+        choices=["new", "resume"],
+        default=None,
+        help="Training mode (if omitted, interactive selector is shown)",
+    )
+    parser.add_argument(
+        "--model-path",
+        default=None,
+        help="Optional explicit model path for resume mode",
+    )
+    parser.add_argument(
+        "--model-rank",
+        type=int,
+        default=None,
+        help="Optional model rank by recency for resume mode (1=latest)",
+    )
+    parser.add_argument(
+        "--timesteps",
+        type=int,
+        default=None,
+        help="Optional override for total training timesteps",
+    )
+    parser.add_argument(
+        "--device",
+        default="cpu",
+        help="Torch device for SB3 (default: cpu)",
+    )
     args = parser.parse_args()
 
     scenario = args.scenario or select_scenario_interactive()
+    mode = args.mode or select_mode_interactive()
+
     module = import_module(SCENARIO_MODULES[scenario])
-    module.main()
+
+    kwargs = {
+        "device": args.device,
+        "mode": mode,
+        "model_path": args.model_path,
+        "model_rank": args.model_rank,
+        "interactive_model_select": mode == "resume" and args.model_path is None and args.model_rank is None,
+    }
+    if args.timesteps is not None:
+        kwargs["total_timesteps"] = args.timesteps
+
+    module.main(**kwargs)
 
 
 if __name__ == "__main__":

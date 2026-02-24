@@ -1,10 +1,12 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.monitor import Monitor
-from pathlib import Path
-from datetime import datetime
 
 from .env import Star5TrackEnv
+from ..common import select_model_path, make_timestamped_model_stem
+
+
+MODEL_PREFIX = "ppo_star5_panda"
 
 
 def make_env():
@@ -29,13 +31,11 @@ def make_env():
     return Monitor(env)
 
 
-def main():
-    env = DummyVecEnv([make_env])
-
-    model = PPO(
+def build_model(env, device: str = "cpu"):
+    return PPO(
         policy="MlpPolicy",
         env=env,
-        device="cpu",
+        device=device,
         verbose=1,
         n_steps=4096,
         batch_size=512,
@@ -46,11 +46,33 @@ def main():
         ent_coef=0.0,
     )
 
-    model.learn(total_timesteps=800_000)
-    model_dir = Path("models")
-    model_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_path_stem = model_dir / f"ppo_star5_panda_{timestamp}"
+
+def main(
+    total_timesteps: int = 800_000,
+    device: str = "cpu",
+    mode: str = "new",
+    model_path: str | None = None,
+    model_rank: int | None = None,
+    interactive_model_select: bool = False,
+):
+    env = DummyVecEnv([make_env])
+
+    if mode == "resume":
+        resume_path = select_model_path(
+            prefix=MODEL_PREFIX,
+            model_path=model_path,
+            model_rank=model_rank,
+            interactive=interactive_model_select and model_path is None and model_rank is None,
+        )
+        model = PPO.load(resume_path, env=env, device=device)
+        reset_num_timesteps = False
+        print(f"Resuming from {resume_path}")
+    else:
+        model = build_model(env, device=device)
+        reset_num_timesteps = True
+
+    model.learn(total_timesteps=total_timesteps, reset_num_timesteps=reset_num_timesteps)
+    model_path_stem = make_timestamped_model_stem(MODEL_PREFIX)
     model.save(str(model_path_stem))
     print(f"Saved to {model_path_stem}.zip")
 
